@@ -3,7 +3,7 @@
   "framework": "vite",
   "installCommand": "corepack enable && corepack pnpm install --frozen-lockfile --prod=false",
   "buildCommand": "corepack pnpm --filter kendra build",
-  "outputDirectory": "apps/kendra/dist",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/:path*",
