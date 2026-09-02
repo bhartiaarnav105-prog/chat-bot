@@ -1,0 +1,58 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong. Please try again.",
+    "retry": "Try Again",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "back": "Back"
+  },
+  "language": {
+    "detected": "Detected language",
+    "confirm_prompt": "We detected {{language}}. Is this correct?",
+    "change_language": "Change language",
+    "low_confidence": "We are not sure of the language. Please confirm.",
+    "select_language": "Select your language"
+  },
+  "voice": {
+    "tap_to_speak": "Tap to Speak",
+    "listening": "Listening...",
+    "processing": "Processing your question...",
+    "transcript_label": "Your question",
+    "retry": "Speak Again",
+    "or_type": "Or type your question below"
+  },
+  "farmer": {
+    "consent_title": "Your Consent",
+    "consent_body": "We collect minimal information to help you. You can withdraw consent at any time.",
+    "consent_accept": "I Agree",
+    "profile_title": "Your Profile",
+    "history_title": "Previous Questions",
+    "save_guidance": "Save This Answer",
+    "guidance_saved": "Answer saved successfully."
+  },
+  "scheme": {
+    "eligibility": "Eligibility",
+    "apply_now": "How to Apply",
+    "deadline": "Last Date",
+    "benefit_amount": "Benefit Amount",
+    "source": "Official Source"
+  },
+  "grievance": {
+    "create_title": "Report a Problem",
+    "status_title": "Grievance Status",
+    "submit": "Submit Grievance",
+    "submitted": "Grievance submitted. Reference: {{id}}"
+  },
+  "answer": {
+    "sources_label": "Sources",
+    "no_evidence": "I could not find reliable information for this. Please speak to an operator.",
+    "escalate": "Talk to Operator"
+  },
+  "errors": {
+    "network": "No internet connection.",
+    "auth": "You are not logged in.",
+    "not_found": "This page could not be found."
+  }
+}

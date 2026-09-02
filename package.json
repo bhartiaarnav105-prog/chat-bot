@@ -1,0 +1,16 @@
+{
+  "name": "sahakaar-sathi",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "es5-ext",
+      "esbuild"
+    ]
+  }
+}
