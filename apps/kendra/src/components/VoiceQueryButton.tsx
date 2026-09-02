@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { t, LANGUAGE_LABELS } from '../i18n';
+import { useState, useRef, useEffect } from 'react';
+import { t } from '../i18n';
 import type { SupportedLocale } from '../i18n';
 
 type VoiceState = 'idle' | 'prompt_permission' | 'recording' | 'processing' | 'done' | 'error';

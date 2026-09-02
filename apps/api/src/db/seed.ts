@@ -1,6 +1,6 @@
 import { db, client } from './index';
 import { 
-  rolesEnum, organizations, serviceCentres, users, devices, 
+  roleEnum, organizations, serviceCentres, users, devices, 
   farmers, schemes, schemeVersions, schemeDocuments 
 } from './schema';
 import * as dotenv from 'dotenv';

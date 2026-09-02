@@ -1,8 +1,7 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import './index.css'
 import { t, LANGUAGE_LABELS } from './i18n'
 import type { SupportedLocale } from './i18n'
-import { VoiceQueryButton } from './components/VoiceQueryButton'
 import { ConsentScreen } from './features/farmer/ConsentScreen'
 import { FarmerProfileView } from './features/farmer/FarmerProfileView'
 import { AskJourney } from './features/farmer/AskJourney'
@@ -132,7 +131,7 @@ function App() {
           <AskJourney
             locale={locale}
             farmerId="demo-farmer-001"
-            onSaveGuidance={(text) => alert(t('farmer.guidance_saved', locale))}
+            onSaveGuidance={() => alert(t('farmer.guidance_saved', locale))}
           />
         )}
 
@@ -155,7 +154,7 @@ function App() {
             savedGuidance={[
               { id: '1', title: 'PMFBY Information', content: 'Farmers pay 2% premium under PMFBY.', createdAt: '2024-01-15' }
             ]}
-            onPrint={(item) => { window.print(); }}
+            onPrint={() => { window.print(); }}
           />
         )}
 
