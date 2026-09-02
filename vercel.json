@@ -1,26 +1,14 @@
 {
-  "version": 2,
-  "builds": [
+  "buildCommand": "pnpm -r build",
+  "outputDirectory": "apps/kendra/dist",
+  "rewrites": [
     {
-      "src": "apps/api/src/server.ts",
-      "use": "@vercel/node"
+      "source": "/api/(.*)",
+      "destination": "/api/server"
     },
     {
-      "src": "apps/kendra/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/apps/api/src/server.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/apps/kendra/$1"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
