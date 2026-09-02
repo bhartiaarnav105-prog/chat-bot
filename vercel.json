@@ -1,6 +1,7 @@
 {
-  "installCommand": "corepack enable && corepack prepare pnpm@9.10.0 --activate && pnpm install --frozen-lockfile --prod=false",
-  "buildCommand": "pnpm --filter kendra build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "corepack enable && corepack pnpm install --frozen-lockfile --prod=false",
+  "buildCommand": "corepack pnpm --filter kendra build",
   "outputDirectory": "apps/kendra/dist",
   "rewrites": [
     {
