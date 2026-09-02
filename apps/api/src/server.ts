@@ -67,4 +67,17 @@ const start = async () => {
   }
 };
 
-start();
+if (!process.env.VERCEL) {
+  start();
+}
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function (req: any, res: any) {
+  await server.ready();
+  server.server.emit('request', req, res);
+}

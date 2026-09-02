@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/api/src/server.ts",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "apps/kendra/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/apps/api/src/server.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/apps/kendra/$1"
+    }
+  ]
+}
