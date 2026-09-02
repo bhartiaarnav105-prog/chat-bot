@@ -48,6 +48,9 @@ export function AskJourney({ locale, farmerId, onSaveGuidance }: AskJourneyProps
         body: JSON.stringify({ question, language, farmerId }),
       });
       const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || data.error || 'Unable to answer the question');
+      }
       setAnswer(data.data);
     } catch {
       setAnswer({ answerText: null, citations: [], insufficientEvidence: false });

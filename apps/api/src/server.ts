@@ -21,6 +21,9 @@ server.setErrorHandler(function (error, request: FastifyRequest, reply: FastifyR
 
 import fastifyMultipart from '@fastify/multipart';
 import assistantRoutes from './modules/assistant/routes';
+import grievanceRoutes from './modules/grievances';
+import knowledgeRoutes from './modules/knowledge';
+import schemeRoutes from './modules/schemes';
 
 // API Versioning convention
 server.register(async (apiV1) => {
@@ -51,8 +54,19 @@ server.register(async (apiV1) => {
     };
   });
 
+  apiV1.get('/assistant', async () => ({
+    success: true,
+    data: {
+      service: 'assistant',
+      queryEndpoint: '/api/v1/assistant/query',
+    },
+  }));
+
   // Module routes
   apiV1.register(assistantRoutes);
+  apiV1.register(schemeRoutes, { prefix: '/schemes' });
+  apiV1.register(knowledgeRoutes, { prefix: '/knowledge-documents' });
+  apiV1.register(grievanceRoutes, { prefix: '/grievances' });
 
 }, { prefix: '/api/v1' });
 
@@ -77,7 +91,10 @@ export const config = {
   },
 };
 
-export default async function (req: any, res: any) {
-  await server.ready();
+let readyPromise: (FastifyInstance & PromiseLike<void>) | undefined;
+
+export default async function handler(req: any, res: any) {
+  readyPromise ??= server.ready();
+  await readyPromise;
   server.server.emit('request', req, res);
 }

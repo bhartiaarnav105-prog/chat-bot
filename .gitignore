@@ -124,3 +124,8 @@ dist
 secret*.json
 .planning/
 .vscode/
+
+# Emergent runtime and generated verification artifacts
+.emergent/
+backend/
+test_reports/

@@ -31,6 +31,9 @@ export function GrievanceView({ locale, farmerId, existingEvents = [] }: Grievan
         body: JSON.stringify({ farmerId, title, description }),
       });
       const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || data.error || 'Unable to submit grievance');
+      }
       setSubmitted(data.data?.id ?? 'submitted');
       setTitle('');
       setDescription('');

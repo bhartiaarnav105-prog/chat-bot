@@ -6,7 +6,7 @@
   "outputDirectory": "apps/kendra/dist",
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
       "destination": "/api/server"
     },
     {
