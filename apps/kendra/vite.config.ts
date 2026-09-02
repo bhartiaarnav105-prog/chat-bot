@@ -4,10 +4,6 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  build: {
-    outDir: '../../dist',
-    emptyOutDir: true,
-  },
   server: {
     allowedHosts: [
       'prod-verified-1.preview.emergentagent.com',
