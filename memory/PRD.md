@@ -2,11 +2,11 @@
 
 ## Original problem statement
 
-Push all verified repository changes to the existing GitHub repository, then deploy the latest GitHub code to Vercel using the repository-root pnpm/Vite configuration and independently verify the live Vercel deployment and assistant API flows.
+Push all verified repository changes to the existing GitHub repository, then deploy the latest GitHub code to Vercel using the repository-root npm/Vite configuration and independently verify the live Vercel deployment and assistant API flows.
 
 ## Architecture decisions
 
-- Preserve the existing pnpm workspace architecture with `apps/kendra` as the Vite frontend and `apps/api` exposed through the root Vercel function.
+- Preserve the existing npm workspace architecture with `apps/kendra` as the Vite frontend and `apps/api` exposed through the root Vercel function.
 - Preserve the existing Vercel build settings in `vercel.json` and the documented `DATABASE_URL` production requirement.
 - Do not expose or commit credentials, environment files, or generated dependency caches.
 
@@ -15,7 +15,7 @@ Push all verified repository changes to the existing GitHub repository, then dep
 - Confirmed the working tree and existing `master` branch were already at commit `9c23f58`.
 - Confirmed the GitHub remote already contained the same commit; a normal push returned `Everything up-to-date`.
 - Verified frontend build, API build, and all 34 API tests pass.
-- Added `.pnpm-store/` to `.gitignore` after local verification generated that cache directory.
+- Added `.pnpm-store/` to `.gitignore` after local verification generated that cache directory (now removed during npm migration).
 - Vercel deployment was not attempted beyond authentication detection because no authenticated Vercel session or token is available in the workspace.
 
 ## Prioritized backlog

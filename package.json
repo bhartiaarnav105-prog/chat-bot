@@ -2,14 +2,19 @@
   "name": "sahakaar-sathi",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@9.10.0",
+  "workspaces": [
+    "apps/*"
+  ],
   "engines": {
-    "node": ">=20",
-    "pnpm": "9.10.0"
+    "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm -r dev",
-    "build": "pnpm -r build",
-    "test": "pnpm -r test"
+    "dev": "concurrently --names api,frontend --prefix-colors blue,green \"npm run dev --workspace=apps/api\" \"npm run dev --workspace=apps/kendra\"",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "start": "npm start --workspace=apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }

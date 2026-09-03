@@ -12,16 +12,16 @@ available to the build.
 | **Framework Preset** | Vite (or Other) |
 | **Root Directory** | *(leave blank / repository root)* |
 | **Node.js Version** | 20.x *(or leave default — the config now accepts ≥20)* |
-| **Install Command** | `corepack enable && corepack pnpm install --frozen-lockfile --prod=false` |
-| **Build Command** | `corepack pnpm --filter kendra build` |
+| **Install Command** | `npm install` |
+| **Build Command** | `npm run build --workspace=apps/kendra` |
 | **Output Directory** | `apps/kendra/dist` |
 
 ## Emergent preview runtime
 
 The preview pod uses the repository root as the working directory:
 
-- `frontend`: `corepack pnpm --filter kendra exec vite --host 0.0.0.0 --port 3000`
-- `backend`: `corepack pnpm --filter @sahakaar-sathi/api start` with `PORT=8001`
+- `frontend`: `npx --workspace=apps/kendra vite --host 0.0.0.0 --port 3000`
+- `backend`: `npm start --workspace=apps/api` with `PORT=8001`
 - Vite proxies `/api/*` to `http://localhost:8001`
 
 Both services must be RUNNING in supervisor before testing the public preview.
@@ -32,15 +32,11 @@ The installable supervisor template is tracked at `ops/supervisor/sahakaar-sathi
 Add the following variable to the Vercel Project Settings for Preview and Production:
 
 | Variable | Purpose |
-|----------|---------|
+|----------|---------| 
 | `DATABASE_URL` | PostgreSQL connection string used by scheme, knowledge, and grievance routes |
 
 The assistant health and text-query flows use the repository's mock providers and do
 not require an AI key. Never commit the real database connection string.
-
-## Why `corepack pnpm` instead of bare `pnpm`
-
-Vercel ships a system-level `pnpm` binary (v6.35.1) that shadows corepack's shim in `$PATH`, even after `corepack prepare --activate`. Using `corepack pnpm` invokes pnpm directly through corepack, bypassing the stale system binary and honoring the `packageManager` field.
 
 ## After pushing
 

@@ -10,8 +10,8 @@ knowledge-document operations.
 
 ## Runtime and deployment
 
-- Package manager: pnpm 9.10.0 from the repository root
-- Frontend build: `corepack pnpm --filter kendra build`
+- Package manager: npm (with npm workspaces) from the repository root
+- Frontend build: `npm run build --workspace=apps/kendra`
 - Vercel output: `apps/kendra/dist`
 - API entrypoint: root `api/server.ts`, with `/api/*` rewritten to that function
 - Emergent preview runtime: Vite dev server on port 3000 proxies `/api/*` to the
