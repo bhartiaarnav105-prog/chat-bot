@@ -57,53 +57,187 @@ export function VoiceQueryButton({ locale, onTranscript, onProcessingStart, onEr
     }
   };
 
+  const getSupportedMimeType = () => {
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/mp4',
+    ];
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+    return '';
+  };
+
   const startRecording = async () => {
     setVoiceState('prompt_permission');
     setErrorMessage('');
     
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        }
+      });
       streamRef.current = stream;
 
-      // Audio analysis for volume meter
+      console.log('[MIC] Audio tracks:', stream.getAudioTracks().length);
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) {
+        const settings = audioTrack.getSettings();
+        console.log('[MIC] Sample rate:', settings.sampleRate);
+        console.log('[MIC] Channel count:', settings.channelCount);
+      }
+
       const audioContext = new AudioContext();
+      console.log('[MIC] AudioContext sample rate:', audioContext.sampleRate);
       audioContextRef.current = audioContext;
       const analyser = audioContext.createAnalyser();
       const microphone = audioContext.createMediaStreamSource(stream);
       microphone.connect(analyser);
       analyser.fftSize = 256;
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const dataArray = new Uint8Array(analyser.fftSize);
+
+      let speechDetected = false;
+      let silenceStart: number | null = null;
+      let noiseFloor = 1.0; 
+      let isAutoStopping = false;
+      let maxPeak = 0;
+      let clippingDetected = false;
+      const recordingStartTime = Date.now();
+      const SILENCE_DURATION = 1500;
+      const MAX_RECORDING_DURATION = 30000;
+      const MIN_ABSOLUTE_SPEECH_THRESHOLD = 0.02;
 
       const updateVolume = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const avg = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        setVolume(avg);
+        if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') return;
+
+        analyser.getByteTimeDomainData(dataArray);
+        
+        let sum = 0;
+        let peak = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const val = (dataArray[i] - 128) / 128.0;
+          sum += val * val;
+          const absVal = Math.abs(val);
+          if (absVal > peak) peak = absVal;
+          if (absVal >= 0.99) clippingDetected = true;
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
+        if (peak > maxPeak) maxPeak = peak;
+        
+        setVolume(rms * 255); // UI pulse
+
+        const now = Date.now();
+        const elapsed = now - recordingStartTime;
+
+        if (elapsed < 500) {
+          if (rms < noiseFloor && rms > 0) {
+            noiseFloor = rms;
+          }
+        } else {
+          const speechThreshold = Math.max(noiseFloor * 3.0, MIN_ABSOLUTE_SPEECH_THRESHOLD);
+
+          if (rms > speechThreshold) {
+            if (!speechDetected) {
+              speechDetected = true;
+              console.log('[MIC] Speech detected');
+            }
+            silenceStart = null;
+          } else if (speechDetected) {
+            if (silenceStart === null) {
+              silenceStart = now;
+            } else if (now - silenceStart > SILENCE_DURATION && !isAutoStopping) {
+              console.log('[MIC] Silence detected');
+              console.log('[MIC] Auto-stopping recording');
+              console.log(`[AUDIO] Final RMS: ${rms.toFixed(4)}`);
+              console.log(`[AUDIO] Final peak: ${maxPeak.toFixed(4)}`);
+              console.log(`[AUDIO] Clipping detected: ${clippingDetected}`);
+              isAutoStopping = true;
+              stopRecording();
+              return;
+            }
+          }
+
+          if (elapsed % 1000 < 50) {
+            // Periodic logs
+            console.log(`[AUDIO] RMS: ${rms.toFixed(4)} | Peak: ${peak.toFixed(4)} | Noise floor: ${noiseFloor.toFixed(4)} | Speech detected: ${speechDetected}`);
+          }
+        }
+
+        if (elapsed > MAX_RECORDING_DURATION && !isAutoStopping) {
+          console.log('[MIC] Maximum recording duration reached');
+          console.log(`[AUDIO] Final RMS: ${rms.toFixed(4)}`);
+          console.log(`[AUDIO] Final peak: ${maxPeak.toFixed(4)}`);
+          console.log(`[AUDIO] Clipping detected: ${clippingDetected}`);
+          isAutoStopping = true;
+          stopRecording();
+          return;
+        }
+
         animationFrameRef.current = requestAnimationFrame(updateVolume);
       };
       updateVolume();
 
       // Setup MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = getSupportedMimeType();
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await uploadAudio(audioBlob);
+        const recordingDuration = Date.now() - recordingStartTime;
+        console.log('[MIC] Recording stopped');
+        console.log(`[MIC] MIME type: ${mediaRecorder.mimeType}`);
+        console.log(`[MIC] Chunks: ${audioChunksRef.current.length}`);
+        console.log(`[MIC] Recording duration: ${recordingDuration} ms`);
+        
+        if (audioChunksRef.current.length === 0) {
+          setVoiceState('error');
+          const msg = 'Recorded audio is empty.';
+          setErrorMessage(msg);
+          onError?.(msg);
+          return;
+        }
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
+        console.log(`[MIC] Blob size: ${audioBlob.size} bytes`);
+        console.log(`[MIC] Blob type: ${audioBlob.type}`);
+
+        if (audioBlob.size === 0) {
+          setVoiceState('error');
+          const msg = 'Recorded audio is empty.';
+          setErrorMessage(msg);
+          onError?.(msg);
+          return;
+        }
+
+        await uploadAudio(audioBlob, mimeType || 'audio/webm');
       };
+
+      console.log('[MIC] Recording started');
+      console.log('[MIC] Waiting for speech');
 
       mediaRecorder.start();
       setVoiceState('recording');
     } catch (err: any) {
       setVoiceState('error');
       if (err.name === 'NotAllowedError') {
-        const msg = 'Microphone permission denied. Please allow access in your browser settings.';
+        const msg = 'Microphone permission was denied.';
         setErrorMessage(msg);
         onError?.(msg);
       } else if (err.name === 'NotFoundError') {
@@ -126,35 +260,56 @@ export function VoiceQueryButton({ locale, onTranscript, onProcessingStart, onEr
     }
   };
 
-  const uploadAudio = async (audioBlob: Blob) => {
+  const uploadAudio = async (audioBlob: Blob, mimeType: string) => {
     setVoiceState('processing');
     onProcessingStart?.();
     stopAllHardware(); // Release mic immediately
 
     try {
+      console.log('[MIC] Uploading audio');
       const formData = new FormData();
-      formData.append('file', audioBlob, 'voice_query.webm');
+      formData.append('file', audioBlob, 'recording.webm');
+      
+      if (locale) {
+        let mappedLocale = locale;
+        if (locale === 'en') mappedLocale = 'en-IN';
+        if (locale === 'hi') mappedLocale = 'hi-IN';
+        if (locale === 'mr') mappedLocale = 'mr-IN';
+        if (locale === 'gu') mappedLocale = 'gu-IN';
+        if (locale === 'bn') mappedLocale = 'bn-IN';
+        formData.append('language', mappedLocale);
+      }
 
-      const response = await fetch('/api/v1/assistant/query', {
+      const response = await fetch('/api/v1/speech-to-text', {
         method: 'POST',
         body: formData,
       });
 
+      console.log(`[MIC] Upload response status: ${response.status}`);
+
       const data = await response.json();
+      console.log('[MIC] STT response:', data);
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error?.message || data.error || 'Failed to process voice query');
+        throw new Error(data.error || 'Failed to upload audio to the server.');
+      }
+
+      // Check if we got a transcript back at the correct location
+      const transcript = data.transcript;
+      if (!transcript || typeof transcript !== 'string' || transcript.trim() === '') {
+        console.log('[MIC] ERROR: Backend returned success without transcript');
+        throw new Error('Speech transcription returned no transcript.');
       }
 
       setVoiceState('done');
-      
+
       const detection: DetectionState = {
-        detectedLanguage: data.data.detectedLanguage,
-        confidence: data.data.confidence,
-        requiresConfirmation: data.data.requiresConfirmation
+        detectedLanguage: data.language || (data.data && data.data.language) || 'en',
+        confidence: 0.95,
+        requiresConfirmation: false,
       };
 
-      onTranscript?.(data.data.transcript, data.data.detectedLanguage, detection);
+      onTranscript?.(transcript, detection.detectedLanguage, detection);
 
     } catch (error: any) {
       setVoiceState('error');
@@ -173,7 +328,6 @@ export function VoiceQueryButton({ locale, onTranscript, onProcessingStart, onEr
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', fontFamily: 'sans-serif' }}>
-
       {/* Primary speak/stop button — minimum 64px touch target */}
       <button
         onClick={isRecording ? stopRecording : startRecording}

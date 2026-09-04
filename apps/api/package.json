@@ -14,7 +14,8 @@
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.30.2",
     "fastify": "^4.26.2",
-    "postgres": "^3.4.4"
+    "postgres": "^3.4.4",
+    "sarvamai": "^1.1.9"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",

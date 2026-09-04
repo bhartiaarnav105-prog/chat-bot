@@ -62,12 +62,11 @@ export function AskJourney({ locale, farmerId, onSaveGuidance }: AskJourneyProps
   const handleVoiceTranscript = (newTranscript: string, lang: string, newDetection: DetectionState) => {
     setDetectedLanguage(lang as SupportedLocale);
     setTranscript(newTranscript);
+    setTypedQuestion(newTranscript); // Fill the text input so user sees the transcript
     setDetection(newDetection);
     
-    // If confirmation is needed, we wait for user. Otherwise, we assume the backend already provided the answer.
+    // If confirmation is needed, we wait for user. Otherwise auto-submit via existing text flow.
     if (!newDetection.requiresConfirmation) {
-      // For this vertical slice, we'll just resubmit the text to get the RAG answer 
-      // (in a real app, the multipart endpoint could return the answer directly if confidence is high)
       askTextQuestion(newTranscript, lang);
     }
   };

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 const server: FastifyInstance = Fastify({
@@ -24,6 +25,7 @@ import assistantRoutes from './modules/assistant/routes';
 import grievanceRoutes from './modules/grievances';
 import knowledgeRoutes from './modules/knowledge';
 import schemeRoutes from './modules/schemes';
+import voiceRoutes from './modules/voice';
 
 // API Versioning convention
 server.register(async (apiV1) => {
@@ -67,6 +69,7 @@ server.register(async (apiV1) => {
   apiV1.register(schemeRoutes, { prefix: '/schemes' });
   apiV1.register(knowledgeRoutes, { prefix: '/knowledge-documents' });
   apiV1.register(grievanceRoutes, { prefix: '/grievances' });
+  apiV1.register(voiceRoutes);
 
 }, { prefix: '/api/v1' });
 
