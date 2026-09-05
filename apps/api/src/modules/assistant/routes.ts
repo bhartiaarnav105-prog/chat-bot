@@ -1,25 +1,112 @@
 import { FastifyInstance } from 'fastify';
-import { HybridRAGService } from '../rag';
-import { MockLanguageDetector, MockSpeechToTextProvider } from '../language/mock-providers';
+import { MockSpeechToTextProvider } from '../language/mock-providers';
+import { searchSchemes } from '../schemes/schemeSearch';
+import { detectLanguage, adaptResponse, LanguageDetectionResult } from '../ai/languageAdaptation';
 
-const ragService = new HybridRAGService();
 const sttProvider = new MockSpeechToTextProvider();
-const languageDetector = new MockLanguageDetector();
+
+async function generateFactualResponse(matchedSchemes: any[], originalQuestion: string, detectedLanguage: LanguageDetectionResult) {
+  if (matchedSchemes.length === 0) {
+    return {
+      success: true,
+      answerText: detectedLanguage.language === 'Hindi' 
+        ? 'मुझे आपके अनुरोध के लिए उपलब्ध योजना डेटाबेस में कोई निकटतम मिलान वाली सरकारी योजना नहीं मिली। कृपया विस्तार से बताएं कि आपको किस प्रकार की सहायता की आवश्यकता है।'
+        : 'I could not find a relevant government scheme for your question.',
+      schemes: []
+    };
+  }
+
+  const topMatch = matchedSchemes[0];
+  const topScheme = topMatch.scheme;
+  
+  // Construct factual payload
+  const factualPayload: any = {
+    scheme_name: topScheme.scheme_name,
+    category: topScheme.category,
+    target_beneficiary: topScheme.target_beneficiary,
+    state_or_central: topScheme.state_or_central,
+    launched_year: topScheme.launched_year,
+    official_website: topScheme.official_website,
+  };
+
+  // Select the best source question/answer based on the language
+  let sourceLang = 'English & Hindi';
+  if (detectedLanguage.language === 'English') {
+    factualPayload.question_english = topScheme.question_english;
+    factualPayload.answer_english = topScheme.answer_english;
+    sourceLang = 'English';
+  } else if (detectedLanguage.language === 'Hindi') {
+    factualPayload.question = topScheme.question;
+    factualPayload.answer = topScheme.answer;
+    sourceLang = 'Hindi';
+  } else {
+    // For other languages, give both to let Gemini choose the best translation source
+    factualPayload.question_english = topScheme.question_english;
+    factualPayload.answer_english = topScheme.answer_english;
+    factualPayload.question = topScheme.question;
+    factualPayload.answer = topScheme.answer;
+  }
+
+  console.log(`\n[RESPONSE GENERATION]`);
+  console.log(`source language: ${sourceLang}`);
+  console.log(`target language: ${detectedLanguage.fullDescription}`);
+  console.log(`scheme: ${topScheme.scheme_name}`);
+
+  const answerText = await adaptResponse(originalQuestion, detectedLanguage, factualPayload);
+
+  console.log(`\n[LANGUAGE ADAPTATION]`);
+  console.log(`completed: true`);
+  console.log(`target: ${detectedLanguage.fullDescription}`);
+
+  const mappedSchemes = matchedSchemes.map(m => ({
+    scheme_name: m.scheme.scheme_name,
+    category: m.scheme.category,
+    target_beneficiary: m.scheme.target_beneficiary,
+    official_website: m.scheme.official_website,
+    state_or_central: m.scheme.state_or_central,
+    score: m.score
+  }));
+  
+  return {
+    success: true,
+    answerText: answerText,
+    schemes: mappedSchemes,
+    debug: {
+      totalCandidates: matchedSchemes.length,
+      matchedSchemes: matchedSchemes.length
+    }
+  };
+}
 
 export default async function assistantRoutes(apiV1: FastifyInstance) {
   apiV1.post('/assistant/query', async (request, reply) => {
+    console.log('[ASSISTANT] Query received');
     try {
       // 1. Check if the request is multipart
       if (!request.isMultipart()) {
         const body = request.body as any;
         if (body && body.question) {
-          // Handle text-only request (fallback)
-          const lang = body.language || 'en';
-          const answer = await ragService.query(body.question, lang, {
-            state: body.state,
-            district: body.district
-          });
-          return { success: true, data: answer };
+          // Handle text-only request
+          const detectedLanguage = await detectLanguage(body.question);
+          
+          console.log(`\n[LANGUAGE DETECTED]`);
+          console.log(`language: ${detectedLanguage.language}`);
+          console.log(`script/style: ${detectedLanguage.scriptStyle}`);
+          
+          const matchedSchemes = await searchSchemes(body.question);
+          const answer = await generateFactualResponse(matchedSchemes, body.question, detectedLanguage);
+          
+          return {
+            success: true,
+            transcript: body.question,
+            detectedLanguage: detectedLanguage.language,
+            confidence: 1.0,
+            requiresConfirmation: false,
+            answerText: answer.answerText,
+            schemes: answer.schemes,
+            debug: answer.debug,
+            insufficientEvidence: answer.schemes.length === 0
+          };
         }
         return reply.code(400).send({ success: false, error: 'Request is not multipart or missing question field' });
       }
@@ -30,7 +117,7 @@ export default async function assistantRoutes(apiV1: FastifyInstance) {
         return reply.code(400).send({ success: false, error: 'No audio file uploaded' });
       }
 
-      // Validate mimetype (e.g. audio/webm, audio/mp4, audio/ogg)
+      // Validate mimetype
       if (!data.mimetype.startsWith('audio/')) {
         return reply.code(400).send({ success: false, error: `Invalid file type: ${data.mimetype}. Expected audio.` });
       }
@@ -44,70 +131,53 @@ export default async function assistantRoutes(apiV1: FastifyInstance) {
 
       // 4. Perform STT & Language Detection
       let transcriptText = '';
-      let resolvedLanguage = 'en';
-      let requiresConfirmation = false;
-      let confidence = 1.0;
-
-      // Ensure STT provider is available
+      
       if (!sttProvider) {
         return reply.code(503).send({ success: false, error: 'Speech provider is not configured' });
       }
 
-      // Convert Node Buffer to ArrayBuffer
       const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 
       const transcriptResult = await sttProvider.transcribe(arrayBuffer, overrideLanguage);
       transcriptText = transcriptResult.originalTranscript;
 
-      if (overrideLanguage) {
-        resolvedLanguage = overrideLanguage;
-      } else {
-        const detection = await languageDetector.detectFromText(transcriptText);
-        resolvedLanguage = detection.detectedLanguage;
-        requiresConfirmation = detection.requiresConfirmation;
-        confidence = detection.confidence;
-      }
+      const detectedLanguage = await detectLanguage(transcriptText);
+      console.log(`\n[LANGUAGE DETECTED]`);
+      console.log(`language: ${detectedLanguage.language}`);
+      console.log(`script/style: ${detectedLanguage.scriptStyle}`);
 
-      // 5. If language confidence is low, return early for confirmation
-      if (requiresConfirmation) {
-        return {
-          success: true,
-          data: {
-            transcript: transcriptText,
-            detectedLanguage: resolvedLanguage,
-            confidence,
-            requiresConfirmation: true,
-            // Provide a mock answer state just in case, but frontend should block
-            answerText: null,
-            citations: [],
-            insufficientEvidence: false
-          }
+      let resolvedLanguage = detectedLanguage;
+      if (overrideLanguage) {
+        resolvedLanguage = {
+          language: overrideLanguage,
+          scriptStyle: 'Unknown',
+          fullDescription: overrideLanguage
         };
       }
 
-      // 6. RAG query
-      const ragAnswer = await ragService.query(transcriptText, resolvedLanguage, {
-        language: resolvedLanguage,
-        // In real app, we'd fetch farmer profile by farmerId to get state/district
-      });
+      let requiresConfirmation = false;
+      let confidence = 1.0;
+
+      // 6. Search schemes using text
+      const matchedSchemes = await searchSchemes(transcriptText);
+      const answerInfo = await generateFactualResponse(matchedSchemes, transcriptText, resolvedLanguage);
 
       // 7. Return complete payload
       return {
         success: true,
-        data: {
-          transcript: transcriptText,
-          detectedLanguage: resolvedLanguage,
-          confidence,
-          requiresConfirmation: false,
-          answerText: ragAnswer.answerText,
-          citations: ragAnswer.citations,
-          insufficientEvidence: ragAnswer.insufficientEvidence
-        }
+        transcript: transcriptText,
+        detectedLanguage: resolvedLanguage.language,
+        confidence,
+        requiresConfirmation: false,
+        answerText: answerInfo.answerText,
+        schemes: answerInfo.schemes,
+        debug: answerInfo.debug,
+        insufficientEvidence: answerInfo.schemes.length === 0
       };
 
     } catch (error) {
       request.log.error(error);
-      return reply.code(500).send({ success: false, error: 'Internal server error processing audio' });
+      return reply.code(500).send({ success: false, error: 'Internal server error processing query' });
     }
   });
 }

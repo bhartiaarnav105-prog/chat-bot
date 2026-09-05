@@ -10,7 +10,7 @@ export default defineConfig({
       'prod-verified-1.cluster-9.preview.emergentcf.cloud',
     ],
     proxy: {
-      '/api': 'http://localhost:8001',
+      '/api': 'http://localhost:8002',
     },
   },
 })

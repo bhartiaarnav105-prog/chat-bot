@@ -10,7 +10,7 @@ interface Citation {
 
 interface CitedAnswer {
   answerText: string | null;
-  citations: Citation[];
+  schemes: any[];
   insufficientEvidence: boolean;
 }
 
@@ -41,6 +41,7 @@ export function AskJourney({ locale, farmerId, onSaveGuidance }: AskJourneyProps
     setLoading(true);
     setAnswer(null);
     setTranscript(question); // Reflect what is being asked
+    console.log('[CHATBOT] Sending question to assistant API');
     try {
       const res = await fetch('/api/v1/assistant/query', {
         method: 'POST',
@@ -51,9 +52,11 @@ export function AskJourney({ locale, farmerId, onSaveGuidance }: AskJourneyProps
       if (!res.ok || !data.success) {
         throw new Error(data.error?.message || data.error || 'Unable to answer the question');
       }
-      setAnswer(data.data);
+      console.log('[CHATBOT] Assistant response received');
+      console.log(`[CHATBOT] Schemes received: ${data.schemes?.length || 0}`);
+      setAnswer(data);
     } catch {
-      setAnswer({ answerText: null, citations: [], insufficientEvidence: false });
+      setAnswer({ answerText: null, schemes: [], insufficientEvidence: false });
     } finally {
       setLoading(false);
     }
@@ -206,7 +209,7 @@ export function AskJourney({ locale, farmerId, onSaveGuidance }: AskJourneyProps
           ) : (
             <div style={{ padding: 20, background: '#fff', borderRadius: 16, border: '1px solid #E4ECE8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: '3px solid #14AE57' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                <p style={{ margin: 0, color: '#101B2D', lineHeight: 1.7, fontSize: 16 }}>{answer.answerText}</p>
+                <p style={{ margin: 0, color: '#101B2D', lineHeight: 1.7, fontSize: 16, whiteSpace: 'pre-wrap' }}>{answer.answerText}</p>
                 
                 {/* TTS Speaker Button */}
                 <button 
@@ -221,16 +224,16 @@ export function AskJourney({ locale, farmerId, onSaveGuidance }: AskJourneyProps
                 </button>
               </div>
 
-              {/* Citations */}
-              {answer.citations.length > 0 && (
+              {/* Citations / Schemes */}
+              {answer.schemes && answer.schemes.length > 0 && (
                 <div style={{ borderTop: '1px solid #E4ECE8', paddingTop: 12 }}>
                   <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: '#45515F', textTransform: 'uppercase' }}>
                     {t('answer.sources_label', locale)}
                   </p>
-                  {answer.citations.map((c, i) => (
-                    <a key={i} href={c.sourceUrl} target="_blank" rel="noopener noreferrer"
+                  {answer.schemes.map((s, i) => (
+                    <a key={i} href="#"
                       style={{ display: 'block', color: '#2E78ED', fontSize: 13, marginBottom: 4 }}>
-                      📄 {c.documentTitle}
+                      📄 {s.scheme_name || 'Scheme Document'}
                     </a>
                   ))}
                 </div>

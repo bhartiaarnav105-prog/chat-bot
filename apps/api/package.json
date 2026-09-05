@@ -4,13 +4,14 @@
   "private": true,
   "main": "dist/server.js",
   "scripts": {
-    "dev": "cross-env PORT=8001 ts-node src/server.ts",
+    "dev": "cross-env PORT=8002 ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "vitest run"
   },
   "dependencies": {
     "@fastify/multipart": "^8.3.1",
+    "@google/genai": "^2.21.0",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.30.2",
     "fastify": "^4.26.2",

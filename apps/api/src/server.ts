@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './env';
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 const server: FastifyInstance = Fastify({
@@ -63,6 +63,31 @@ server.register(async (apiV1) => {
       queryEndpoint: '/api/v1/assistant/query',
     },
   }));
+
+  // Temporary development-only endpoint to verify Supabase connection
+  apiV1.get('/debug/supabase', async (request, reply) => {
+    try {
+      const { supabase } = await import('./modules/schemes/supabaseClient');
+      const { data: tableList, error: tableError } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_schema', 'public');
+      
+      const { data, error, count } = await supabase.from('scheme_qa').select('*', { count: 'exact' }).limit(10);
+      
+      return { 
+        success: true, 
+        table: 'public.scheme_qa',
+        tables_in_public: tableList?.map(t => t.table_name) || [],
+        count: count, 
+        rows: data,
+        error: error ? error : null,
+        tableError: tableError ? tableError : null
+      };
+    } catch (e: any) {
+      return { success: false, table: 'public.scheme_qa', error: e.message || 'Unknown error' };
+    }
+  });
 
   // Module routes
   apiV1.register(assistantRoutes);
